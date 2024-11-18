@@ -83,7 +83,6 @@ func subscribeToIngest(ingestEndpoint string) error {
 
 func writeError(w http.ResponseWriter, code int, err string) {
 	w.WriteHeader(code)
-	_, _ = w.Write([]byte(err))
-	_, _ = w.Write([]byte("\n"))
+	_, _ = w.Write([]byte(err + "\n"))
 	return
 }

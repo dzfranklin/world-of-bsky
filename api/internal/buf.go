@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"encoding/json"
-	"slices"
 	"sync"
 )
 
@@ -18,7 +17,7 @@ type provider struct {
 	count int
 
 	// subscribers
-	subs []chan json.RawMessage
+	subs map[chan json.RawMessage]struct{}
 }
 
 var Provider = &provider{
@@ -40,7 +39,7 @@ func (b *provider) Push(val json.RawMessage) {
 
 	// subscribers
 
-	for _, sub := range b.subs {
+	for sub := range b.subs {
 		select {
 		case sub <- val:
 		default:
@@ -65,24 +64,14 @@ func (b *provider) SubscribeAndGet(ctx context.Context) ([]json.RawMessage, chan
 	}
 
 	ch := make(chan json.RawMessage, 1)
-	b.subs = append(b.subs, ch)
+	b.subs[ch] = struct{}{}
 
 	go func() {
 		<-ctx.Done()
-		b.lockAndRemoveSubWhere(ch)
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		delete(b.subs, ch)
 	}()
 
 	return curr, ch
-}
-
-func (b *provider) lockAndRemoveSubWhere(ch chan json.RawMessage) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	idx := slices.Index(b.subs, ch)
-	if idx == -1 {
-		return
-	}
-	b.subs[idx] = b.subs[len(b.subs)-1]
-	b.subs = b.subs[:len(b.subs)-1]
 }
