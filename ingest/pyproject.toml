@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "world-of-bsky-ingest"
+version = "0.1.0"
+description = ""
+authors = ["Daniel Franklin <daniel@danielzfranklin.org>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "~3.12"
+languageidentifier = "^1.1.1"
+stanza = "^1.9.2"
+websockets = "^14.1"
+editdistance = "^0.8.1"
+requests = "^2.32.3"
+pydantic = "^2.9.2"
+prometheus-client = "^0.21.0"
+certifi = "^2024.8.30"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
