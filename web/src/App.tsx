@@ -10,7 +10,7 @@ export default function App() {
 
   return (<div className="h-screen max-h-screen w-screen max-w-screen overflow-hidden">
     <div className="fixed top-5 right-5 w-32 pointer-events-none">
-      <div className="bg-white pointer-events-auto">
+      <div className="bg-white bg-opacity-60 pointer-events-auto">
         <OrbitPicker orbit={orbit} setOrbit={setOrbit}/>
       </div>
     </div>

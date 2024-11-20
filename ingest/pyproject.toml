@@ -16,6 +16,7 @@ requests = "^2.32.3"
 pydantic = "^2.9.2"
 prometheus-client = "^0.21.0"
 certifi = "^2024.8.30"
+llama-stack = "^0.0.52"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,10 +1,11 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {geoClipCircle, geoGraticule, geoPath, GeoStream} from "d3";
 import {geoSatellite} from "d3-geo-projection";
 import * as topojson from "topojson-client";
 import type GeoJSON from "geojson";
 import {GeoPermissibleObjects} from "d3-geo";
-import {Orbit} from "./schema.ts";
+import {ImageEntrySchema, Orbit} from "./schema.ts";
+import {ImageProvider} from "./ImageProvider.ts";
 
 // Based on <https://observablehq.com/@jjhembd/tilting-the-satellite>
 
@@ -20,6 +21,99 @@ const defaultRenderParams: RenderParams = {
   fieldOfView: 40,
 }
 
+const sampleImage = ImageEntrySchema.parse({
+    "entity": {
+      "text": "Houston",
+      "start_char": 91,
+      "end_char": 98,
+      "_nlp_type": "GPE",
+      "osm": {
+        "osm_type": "relation",
+        "osm_id": 2688911,
+        "lat": "29.7589382",
+        "lon": "-95.3676974",
+        "category": "boundary",
+        "type": "administrative",
+        "name": "Houston",
+        "display_name": "Houston, Harris County, Texas, United States",
+        "boundingbox": [
+          "29.5370705",
+          "30.1103506",
+          "-95.9097419",
+          "-95.0120525"
+        ]
+      }
+    },
+    "image": {
+      "alt": "Photo of me and a friend from a photo shoot for Danny out for life supporting a foundation Houston",
+      "aspectRatio": {
+        "height": 1207,
+        "width": 1207
+      },
+      "image": {
+        "$type": "blob",
+        "ref": {
+          "$link": "bafkreih7jmdh6ihubhnzg65bwfd7ct26ejsmp7ksqvndrudl2ymad332pi"
+        },
+        "mimeType": "image/jpeg",
+        "size": 586406
+      }
+    },
+    "event": {
+      "did": "did:plc:uas6hwpiwfhkep62baacgx5m",
+      "time_us": 1731965355698301,
+      "type": "com",
+      "kind": "commit",
+      "commit": {
+        "rev": "3lbauhvf6yj2c",
+        "type": "c",
+        "operation": "create",
+        "collection": "app.bsky.feed.post",
+        "rkey": "3lbauhtrpys2e",
+        "record": {
+          "$type": "app.bsky.feed.post",
+          "createdAt": "2024-11-18T21:29:12.663Z",
+          "embed": {
+            "$type": "app.bsky.embed.images",
+            "images": [
+              {
+                "alt": "Photo of me and a friend from a photo shoot for Danny out for life supporting a foundation Houston",
+                "aspectRatio": {
+                  "height": 1207,
+                  "width": 1207
+                },
+                "image": {
+                  "$type": "blob",
+                  "ref": {
+                    "$link": "bafkreih7jmdh6ihubhnzg65bwfd7ct26ejsmp7ksqvndrudl2ymad332pi"
+                  },
+                  "mimeType": "image/jpeg",
+                  "size": 586406
+                }
+              }
+            ]
+          },
+          "langs": [
+            "en"
+          ],
+          "reply": {
+            "parent": {
+              "cid": "bafyreia6dhybgyjnvsmhwen7yfnerkmwxfl5f54kl7wvvu5vcvipkqnfwy",
+              "uri": "at://did:plc:nflf7lzmbqjjlz6uks5btopf/app.bsky.feed.post/3lbau5byy4k2h"
+            },
+            "root": {
+              "cid": "bafyreicuaymvevkbrrdapsd5b5b7iflikjy6qea2g25gzn6tw3lzsanmsa",
+              "uri": "at://did:plc:uas6hwpiwfhkep62baacgx5m/app.bsky.feed.post/3lb6j3f7ur22d"
+            }
+          },
+          "text": "You’re a hoot!  I’m more clown than model for sure. Well, maybe the before model in a surgeons ad 😂"
+        },
+        "cid": "bafyreiaat7dbh4l4gbwtstfk5qx5cyancmdgs7jl2dkl5dzikkqt6azth4"
+      }
+    }
+  }
+);
+
 export function GlobeComponent({orbit}: { orbit?: Orbit }) {
   if (!orbit) orbit = 'North';
 
@@ -28,7 +122,7 @@ export function GlobeComponent({orbit}: { orbit?: Orbit }) {
   const [land, setLand] = useState<GeoJSON.Feature | undefined>();
   useEffect(() => {
     let abort = new AbortController();
-    fetch("https://cdn.jsdelivr.net/npm/world-atlas@1/world/50m.json", {signal: abort.signal})
+    fetch("https://cdn.jsdelivr.net/npm/world-atlas@1/world/110m.json", {signal: abort.signal})
       .then(response => response.json())
       .then(world => {
         if (abort.signal.aborted) return;
@@ -41,6 +135,13 @@ export function GlobeComponent({orbit}: { orbit?: Orbit }) {
       abort.abort()
     }
   }, []);
+
+  const images = useMemo(() => new ImageProvider(), []);
+  useEffect(() => {
+    // TODO: fixme
+    images.add(sampleImage)
+  }, []);
+
 
   const [width, setWidth] = useState<number | undefined>();
   const [height, setHeight] = useState<number | undefined>();
@@ -87,17 +188,16 @@ export function GlobeComponent({orbit}: { orbit?: Orbit }) {
     if (!land || !context) return;
 
     let stopped = false;
-
-
-    requestAnimationFrame(function loop() {
+    let lastT: number | null = null;
+    requestAnimationFrame(function loop(t) {
       if (stopped) return;
       const params = paramsRef.current;
+      const dt = lastT ? t - lastT : 0;
 
-      // TODO: use time
-      params.longitude = (params.longitude + 180 + 0.2) % 360 - 180;
+      params.longitude = (params.longitude + 180 + dt*.01) % 360 - 180;
 
-      render(context, land, params);
-
+      render(context, land, images, params);
+      lastT = t;
       requestAnimationFrame(loop);
     })
 
@@ -124,7 +224,7 @@ const grid: Record<string, GeoPermissibleObjects> = {
   horizon: ({type: "Sphere"})
 }
 
-function render(ctx: CanvasRenderingContext2D, land: GeoJSON.Feature, params: RenderParams) {
+function render(ctx: CanvasRenderingContext2D, land: GeoJSON.Feature, images: ImageProvider, params: RenderParams) {
   ctx.reset();
 
   const height = ctx.canvas.height;
@@ -140,13 +240,14 @@ function render(ctx: CanvasRenderingContext2D, land: GeoJSON.Feature, params: Re
 
   let preclip: (_: GeoStream) => GeoStream;
   {
-    const tilt = params.tilt / degrees;
-    const alpha = Math.acos(snyderP * Math.cos(tilt) * 0.999);
-    const clipDistance = geoClipCircle(Math.acos(1 / snyderP) - 1e-6);
+    const distance = snyderP;
+    const tilt = params.tilt * Math.PI / 180;
+    const alpha = Math.acos(distance * Math.cos(tilt) * 0.999);
+    const clipDistance = geoClipCircle(Math.acos(1 / distance) - 1e-6);
     preclip = alpha ? geoPipeline(
       clipDistance,
       geoRotatePhi(Math.PI + tilt),
-      geoClipCircle(Math.PI - alpha - 1e-4), // Extra safety factor needed for large tilt values
+      geoClipCircle(Math.PI - alpha),
       geoRotatePhi(-Math.PI - tilt)
     ) : clipDistance;
   }
@@ -162,10 +263,21 @@ function render(ctx: CanvasRenderingContext2D, land: GeoJSON.Feature, params: Re
 
   const path = geoPath(projection, ctx);
 
-  ctx.fillStyle = "#88d";
+  ctx.beginPath();
+  path(grid.horizon);
+  ctx.strokeStyle = "#9f9e9e";
+  ctx.stroke();
+  ctx.clip();
+
+  ctx.fillStyle = "#eeeeee";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = "#fcfcfc";
+  ctx.strokeStyle = "#bdbdbd";
   ctx.beginPath();
   path(land);
   ctx.fill();
+  ctx.stroke();
 
   ctx.beginPath();
   path(grid.major);
@@ -173,10 +285,11 @@ function render(ctx: CanvasRenderingContext2D, land: GeoJSON.Feature, params: Re
   ctx.globalAlpha = 0.8;
   ctx.stroke();
 
-  ctx.beginPath();
-  path(grid.horizon);
-  ctx.strokeStyle = "#000";
-  ctx.stroke();
+  for (const entry of images) {
+    const point = projection([entry.entry.entity.osm.lon, entry.entry.entity.osm.lat])
+    if (!point) continue;
+    ctx.drawImage(entry.thumbnail, point[0], point[1], entry.aspectRatio * 100, 100)
+  }
 }
 
 function geoPipeline(...transforms: Array<(_: GeoStream) => GeoStream>): (_: GeoStream) => GeoStream {  // Move to Appendix?

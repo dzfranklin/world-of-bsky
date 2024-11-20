@@ -1,0 +1,12 @@
+TODO: validate this can all work joined up
+TODO: identify when it matches more than one place exactly
+TODO: truncate to max 300 chars
+TODO: test set?
+
+https://observablehq.com/@michael-keith/draggable-globe-in-d3
+
+https://observablehq.com/@jjhembd/tilting-the-satellite
+- rotation: 0
+- tilt: 12
+- field of view: 20
+- altitude: 11,000

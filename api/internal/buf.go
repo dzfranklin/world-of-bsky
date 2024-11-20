@@ -21,7 +21,8 @@ type provider struct {
 }
 
 var Provider = &provider{
-	buf: make([]json.RawMessage, size),
+	buf:  make([]json.RawMessage, size),
+	subs: make(map[chan json.RawMessage]struct{}, 1024),
 }
 
 func (b *provider) Push(val json.RawMessage) {

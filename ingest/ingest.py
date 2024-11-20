@@ -88,6 +88,7 @@ def run_extract():
             event = _commits_with_images.popleft()
 
         for image in event["commit"]["record"]["embed"]["images"]:
+            # TODO: Only look at the first image
             alt = image["alt"]
             if alt == "" or not _is_english(alt):
                 continue
